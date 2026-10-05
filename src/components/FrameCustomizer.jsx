@@ -1,4 +1,5 @@
 import React, { useRef } from 'react';
+import { createShareableArtUrl } from '../utils/imageSync';
 import {
   Upload,
   Palette,
@@ -16,6 +17,7 @@ import {
 export function FrameCustomizer({
   artworkUrl,
   setArtworkUrl,
+  setShareableArtUrl,
   frameColor,
   setFrameColor,
   frameFinish,
@@ -52,11 +54,21 @@ export function FrameCustomizer({
     { name: 'Charcoal', color: '#0f172a' },
   ];
 
-  const handleArtUpload = (e) => {
+  const handleArtUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const url = URL.createObjectURL(file);
-    setArtworkUrl(url);
+
+    try {
+      const { localUrl, shareableUrl } = await createShareableArtUrl(file);
+      setArtworkUrl(localUrl);
+      if (setShareableArtUrl) {
+        setShareableArtUrl(shareableUrl);
+      }
+    } catch (err) {
+      console.error('Art upload error:', err);
+      const url = URL.createObjectURL(file);
+      setArtworkUrl(url);
+    }
   };
 
   return (
@@ -149,7 +161,10 @@ export function FrameCustomizer({
             return (
               <button
                 key={preset.id}
-                onClick={() => setArtworkUrl(preset.url)}
+                onClick={() => {
+                  setArtworkUrl(preset.url);
+                  if (setShareableArtUrl) setShareableArtUrl(preset.url);
+                }}
                 style={{
                   borderRadius: '10px',
                   overflow: 'hidden',

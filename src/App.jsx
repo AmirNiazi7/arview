@@ -28,6 +28,7 @@ export function App() {
 
   // Frame Customizer State (white-portrait-frame-18x24.glb)
   const [artworkUrl, setArtworkUrl] = useState('/art/palms-paradise.svg');
+  const [shareableArtUrl, setShareableArtUrl] = useState('/art/palms-paradise.svg');
   const [frameColor, setFrameColor] = useState('#ffffff');
   const [frameFinish, setFrameFinish] = useState({ roughness: 0.7, metalness: 0.05 });
   const [matboardColor, setMatboardColor] = useState('#ffffff');
@@ -68,11 +69,30 @@ export function App() {
     if (params.get('ar') === '1') {
       setIsLaptopAROpen(true);
       addToast('Launching Live Room AR Camera...', 'success');
+
+      // Sync Art
+      const artPreset = params.get('artPreset');
+      if (artPreset === 'palms') {
+        setArtworkUrl('/art/palms-paradise.svg');
+      } else if (artPreset === 'modern') {
+        setArtworkUrl('/art/modern-forms.svg');
+      } else if (artPreset === 'botanical') {
+        setArtworkUrl('/art/botanical-emerald.svg');
+      } else {
+        const customUrl = params.get('artUrl');
+        if (customUrl) {
+          setArtworkUrl(customUrl);
+        }
+      }
+
+      // Sync Size
       const sizeParam = params.get('size');
       if (sizeParam) {
         const found = SIZE_OPTIONS.find((s) => s.label.includes(sizeParam) || s.label === sizeParam);
         if (found) setSelectedSize(found);
       }
+
+      // Sync Frame Color
       const colorParam = params.get('frameColor');
       if (colorParam) {
         setFrameColor(colorParam);
@@ -152,6 +172,7 @@ export function App() {
               setArtworkUrl(url);
               addToast('Updated artwork print texture!', 'info');
             }}
+            setShareableArtUrl={setShareableArtUrl}
             frameColor={frameColor}
             setFrameColor={setFrameColor}
             frameFinish={frameFinish}
@@ -200,7 +221,7 @@ export function App() {
         />
       </main>
 
-      {/* 1. DIRECT LAPTOP WEBCAM LIVE AR WALL VIEW */}
+      {/* 1. DIRECT LAPTOP/MOBILE WEBCAM LIVE AR WALL VIEW */}
       <WebcamWallAR
         isOpen={isLaptopAROpen}
         onClose={() => setIsLaptopAROpen(false)}
@@ -211,6 +232,7 @@ export function App() {
         frameFinish={frameFinish}
         setFrameFinish={setFrameFinish}
         matboardColor={matboardColor}
+        setMatboardColor={setMatboardColor}
         selectedSize={selectedSize}
         setSelectedSize={setSelectedSize}
         sizeOptions={SIZE_OPTIONS}
@@ -221,6 +243,7 @@ export function App() {
         isOpen={isARModalOpen}
         onClose={() => setIsARModalOpen(false)}
         artworkUrl={artworkUrl}
+        shareableArtUrl={shareableArtUrl}
         frameColor={frameColor}
         frameFinish={frameFinish}
         selectedSize={selectedSize}

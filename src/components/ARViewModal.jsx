@@ -7,6 +7,7 @@ export function ARViewModal({
   isOpen,
   onClose,
   artworkUrl,
+  shareableArtUrl,
   frameColor,
   frameFinish,
   selectedSize,
@@ -18,15 +19,33 @@ export function ARViewModal({
   const [isModelReady, setIsModelReady] = useState(false);
   const [arQrUrl, setArQrUrl] = useState('');
 
-  // Generate mobile link using actual LAN network IP if available so mobile works
+  // Generate mobile link with artwork parameter so it syncs to mobile
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const host = window.location.hostname === 'localhost' ? '192.168.20.157' : window.location.hostname;
       const port = window.location.port ? `:${window.location.port}` : '';
-      const url = `${window.location.protocol}//${host}${port}/?ar=1&size=${encodeURIComponent(selectedSize?.label || '18x24')}&frameColor=${encodeURIComponent(frameColor)}`;
-      setArQrUrl(url);
+      const url = new URL(`${window.location.protocol}//${host}${port}/`);
+      url.searchParams.set('ar', '1');
+      url.searchParams.set('size', selectedSize?.label || '18x24');
+      url.searchParams.set('frameColor', frameColor);
+
+      // Pass artwork URL or preset
+      const syncUrl = shareableArtUrl || artworkUrl;
+      if (syncUrl) {
+        if (syncUrl.includes('palms-paradise')) {
+          url.searchParams.set('artPreset', 'palms');
+        } else if (syncUrl.includes('modern-forms')) {
+          url.searchParams.set('artPreset', 'modern');
+        } else if (syncUrl.includes('botanical-emerald')) {
+          url.searchParams.set('artPreset', 'botanical');
+        } else if (syncUrl.startsWith('http')) {
+          url.searchParams.set('artUrl', syncUrl);
+        }
+      }
+
+      setArQrUrl(url.toString());
     }
-  }, [selectedSize, frameColor]);
+  }, [selectedSize, frameColor, artworkUrl, shareableArtUrl]);
 
   // Configure <model-viewer> and apply texture + materials like ElephantStock
   useEffect(() => {
@@ -41,7 +60,6 @@ export function ARViewModal({
       mv.scale = `${sizeScale} ${sizeScale} 1`;
 
       try {
-        // 1. Apply Artwork Texture to 'Portrait artwork' material slot
         if (artworkUrl) {
           const artworkMat = mv.model?.getMaterialByName('Portrait artwork');
           if (artworkMat) {
@@ -50,7 +68,6 @@ export function ARViewModal({
           }
         }
 
-        // 2. Apply Frame Color & PBR finish to 'Matte white frame' material slot
         const frameMat = mv.model?.getMaterialByName('Matte white frame');
         if (frameMat) {
           const hex = frameColor.replace('#', '');
@@ -75,15 +92,6 @@ export function ARViewModal({
   }, [isOpen, artworkUrl, frameColor, frameFinish, sizeScale]);
 
   if (!isOpen) return null;
-
-  const handleLaunchNativeAR = () => {
-    if (modelViewerRef.current?.canActivateAR) {
-      modelViewerRef.current.activateAR();
-    } else {
-      // If WebXR not supported on desktop, trigger Laptop Webcam AR
-      onOpenLaptopAR();
-    }
-  };
 
   return (
     <div
@@ -144,7 +152,7 @@ export function ARViewModal({
                 View In Your Room (AR)
               </h2>
               <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                ElephantStock-style true-to-scale vertical wall placement
+                ElephantStock-style true-to-scale vertical wall placement & image sync
               </p>
             </div>
           </div>
@@ -163,7 +171,7 @@ export function ARViewModal({
             overflowY: 'auto',
           }}
         >
-          {/* Left: Interactive 3D / AR Viewport with direct Laptop Camera trigger */}
+          {/* Left: 3D Preview */}
           <div
             style={{
               position: 'relative',
@@ -177,7 +185,6 @@ export function ARViewModal({
               padding: '20px',
             }}
           >
-            {/* The Google Model-Viewer Web Component */}
             <model-viewer
               ref={modelViewerRef}
               src="/white-portrait-frame-18x24.glb"
@@ -194,7 +201,6 @@ export function ARViewModal({
               style={{ width: '100%', height: '100%', minHeight: '340px' }}
             />
 
-            {/* Laptop Camera AR Prominent Action */}
             <div
               style={{
                 position: 'absolute',
@@ -224,7 +230,6 @@ export function ARViewModal({
               </button>
             </div>
 
-            {/* Spec Badges */}
             <div
               style={{
                 position: 'absolute',
@@ -240,7 +245,7 @@ export function ARViewModal({
             </div>
           </div>
 
-          {/* Right: Laptop Camera & Mobile WiFi QR */}
+          {/* Right: QR Code & Mobile Instructions */}
           <div
             style={{
               padding: '28px 24px',
@@ -260,15 +265,15 @@ export function ARViewModal({
                 border: '1px solid rgba(16, 185, 129, 0.3)',
                 padding: '14px 18px',
                 borderRadius: '16px',
-                marginBottom: '20px',
+                marginBottom: '16px',
                 textAlign: 'left',
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, color: '#34d399', fontSize: '0.9rem', marginBottom: '4px' }}>
                 <Camera size={16} /> Direct Laptop Webcam AR
               </div>
-              <p style={{ fontSize: '0.78rem', color: '#cbd5e1', marginBottom: '10px' }}>
-                Uses your laptop camera feed live, with interactive drag & drop directly on your room wall.
+              <p style={{ fontSize: '0.78rem', color: '#cbd5e1', marginBottom: '8px' }}>
+                Wall detection & live dragging directly on your laptop screen.
               </p>
               <button
                 className="btn btn-primary"
@@ -283,9 +288,9 @@ export function ARViewModal({
             </div>
 
             {/* Quick Option 2: Mobile QR Code */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', margin: '4px 0 16px 0' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', margin: '4px 0 12px 0' }}>
               <div style={{ height: '1px', flex: 1, background: 'var(--border-subtle)' }} />
-              <span style={{ fontSize: '0.7rem', color: 'var(--text-faint)', textTransform: 'uppercase', fontWeight: 700 }}>OR PHONE SCAN (Same WiFi)</span>
+              <span style={{ fontSize: '0.7rem', color: 'var(--text-faint)', textTransform: 'uppercase', fontWeight: 700 }}>MOBILE SYNC (WiFi)</span>
               <div style={{ height: '1px', flex: 1, background: 'var(--border-subtle)' }} />
             </div>
 
@@ -295,21 +300,18 @@ export function ARViewModal({
                 padding: '12px',
                 borderRadius: '14px',
                 boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
-                marginBottom: '10px',
+                marginBottom: '8px',
               }}
             >
               <QRCodeSVG
                 value={arQrUrl || window.location.href}
-                size={120}
+                size={130}
                 level="M"
                 includeMargin={false}
               />
             </div>
-            <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', maxWidth: '240px', lineHeight: '1.4' }}>
-              Connected to local network: <br />
-              <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent-secondary)' }}>
-                {arQrUrl.split('/?')[0]}
-              </span>
+            <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', maxWidth: '250px', lineHeight: '1.4' }}>
+              Scan to load your exact selected artwork, frame color, and size on your phone!
             </p>
           </div>
         </div>
